@@ -3,6 +3,8 @@ import requests
 import telegram
 import time
 from dotenv import load_dotenv
+from requests.exceptions import RequestException
+import logging
 
 load_dotenv()
 
@@ -10,10 +12,13 @@ load_dotenv()
 PRACTICUM_TOKEN = os.getenv("PRACTICUM_TOKEN")
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
+BOT = telegram.Bot(token=TELEGRAM_TOKEN)
 
 
 def parse_homework_status(homework):
     homework_name = homework.get('homework_name')
+    if homework_name is None:
+        return 'Неверный ответ сервера'
     if homework.get('status') == 'rejected':
         verdict = 'К сожалению в работе нашлись ошибки.'
     else:
@@ -22,19 +27,25 @@ def parse_homework_status(homework):
 
 
 def get_homework_statuses(current_timestamp):
+    if current_timestamp is None:
+        current_timestamp = int(time.time())
     url = 'https://praktikum.yandex.ru/api/user_api/homework_statuses/'
     headers = {'Authorization': f'OAuth {PRACTICUM_TOKEN}'}
     params = {
         'from_date': current_timestamp,
     }
-    homework_statuses = requests.get(url=url, headers=headers, params=params)
-    return homework_statuses.json()
+    try:
+        homework_statuses = requests.get(url=url, headers=headers, params=params)
+        return homework_statuses.json()
+    except RequestException as err:
+        logging.debug(err, 'Error getting JSON')
+
 
 
 def send_message(message):
-    bot = telegram.Bot(token=TELEGRAM_TOKEN)
+
     print(message)
-    return bot.send_message(chat_id=CHAT_ID, text=message)
+    return BOT.send_message(chat_id=CHAT_ID, text=message)
 
 
 def main():
